@@ -23,7 +23,7 @@ Deno.serve(async (req: Request) => {
 
     if (req.method === "POST") {
       const body = await req.json();
-      const { device_id, project_id, role, auto_update, tank_shape, height_cm, width_cm, length_cm } = body;
+      const { device_id, project_id, role, auto_update, tank_shape, height_cm, width_cm, length_cm, max_flow_in, max_flow_out, pump_lower_threshold, pump_upper_threshold } = body;
 
       if (!device_id || !project_id) {
         return new Response(
@@ -67,6 +67,10 @@ Deno.serve(async (req: Request) => {
             height_cm,
             width_cm,
             length_cm,
+            max_flow_in: max_flow_in !== undefined ? max_flow_in : 0,
+            max_flow_out: max_flow_out !== undefined ? max_flow_out : 0,
+            pump_lower_threshold: pump_lower_threshold !== undefined ? pump_lower_threshold : 15,
+            pump_upper_threshold: pump_upper_threshold !== undefined ? pump_upper_threshold : 100,
             updated_at: new Date().toISOString(),
           })
           .eq("device_id", device_id)
@@ -103,6 +107,11 @@ Deno.serve(async (req: Request) => {
           height_cm,
           width_cm,
           length_cm,
+          max_flow_in: max_flow_in !== undefined ? max_flow_in : 0,
+          max_flow_out: max_flow_out !== undefined ? max_flow_out : 0,
+          pump_lower_threshold: pump_lower_threshold !== undefined ? pump_lower_threshold : 15,
+          pump_upper_threshold: pump_upper_threshold !== undefined ? pump_upper_threshold : 100,
+          manual_switch: 0,
         })
         .select()
         .single();

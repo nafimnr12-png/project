@@ -6,6 +6,7 @@ import { renderProjectList } from './pages/projects.js';
 import { renderProjectDetail } from './pages/project-detail.js';
 import { renderDeviceTelemetry } from './pages/device-telemetry.js';
 import { renderProjectTelemetry } from './pages/project-telemetry.js';
+import { renderMLScriptEditor } from './pages/ml-script-editor.js';
 
 window.router = router;
 
@@ -17,5 +18,6 @@ router.register('/device/telemetry', renderDeviceTelemetry);
 router.register('/projects', renderProjectList);
 router.register('/project', renderProjectDetail);
 router.register('/project/telemetry', (params) => renderProjectTelemetry(params.get('id')));
+router.register('/project/ml-script', renderMLScriptEditor);
 
 router.init();

@@ -24,9 +24,46 @@ export async function renderProjectList() {
       </div>
 
       <div class="card">
-        <h2 class="card-title">All Projects</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+          <h2 class="card-title" style="margin: 0;">All Projects</h2>
+          <button class="btn btn-primary" onclick="showCreateProjectModal()">Create New Project</button>
+        </div>
         <div id="project-list">
           <div class="loading">Loading projects...</div>
+        </div>
+      </div>
+
+      <div id="create-project-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+          <h2>Create New Project</h2>
+          <form id="create-project-form">
+            <div class="form-group">
+              <label class="form-label" for="project_id">Project ID</label>
+              <input type="text" id="project_id" class="form-input" placeholder="e.g., WP03" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="project_name">Project Name</label>
+              <input type="text" id="project_name" class="form-input" placeholder="e.g., Water Tank System" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="project_type">Project Type</label>
+              <select id="project_type" class="form-select" required>
+                <option value="">Select type</option>
+                <option value="water_pump">Water Pump</option>
+                <option value="smart_light">Smart Light</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <div class="checkbox-wrapper">
+                <input type="checkbox" id="has_ml_script">
+                <label class="form-label" for="has_ml_script" style="margin: 0;">Add ML Script</label>
+              </div>
+            </div>
+            <div class="actions">
+              <button type="submit" class="btn btn-primary">Create Project</button>
+              <button type="button" class="btn btn-secondary" onclick="hideCreateProjectModal()">Cancel</button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
@@ -77,6 +114,7 @@ async function loadProjectList() {
         <div class="project-card" onclick="window.router.navigate('/project?id=${project.project_id}')">
           <div class="project-type">
             <span class="badge badge-info">${project.project_type.replace('_', ' ')}</span>
+            ${project.has_ml_script ? '<span class="badge badge-success" style="margin-left: 0.5rem;">ML</span>' : ''}
           </div>
           <div class="project-name">${project.project_name}</div>
           <div class="project-id">${project.project_id}</div>
@@ -86,7 +124,15 @@ async function loadProjectList() {
           <div style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">
             Created ${formatDate(project.created_at)}
           </div>
-          <div style="margin-top: 0.75rem;">
+          <div style="margin-top: 0.75rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            ${project.has_ml_script ? `
+              <button
+                class="btn btn-small btn-primary"
+                onclick="event.stopPropagation(); window.router.navigate('/project/ml-script?id=${project.project_id}')"
+              >
+                Edit ML Script
+              </button>
+            ` : ''}
             <button
               class="btn btn-small btn-danger"
               onclick="event.stopPropagation(); deleteProject('${project.project_id}')"
@@ -129,3 +175,50 @@ window.deleteProject = async function(projectId) {
   showNotification('Project deleted successfully', 'success');
   loadProjectList();
 };
+
+window.showCreateProjectModal = function() {
+  document.getElementById('create-project-modal').style.display = 'flex';
+};
+
+window.hideCreateProjectModal = function() {
+  document.getElementById('create-project-modal').style.display = 'none';
+  document.getElementById('create-project-form').reset();
+};
+
+window.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('create-project-form');
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const projectId = document.getElementById('project_id').value;
+      const projectName = document.getElementById('project_name').value;
+      const projectType = document.getElementById('project_type').value;
+      const hasMLScript = document.getElementById('has_ml_script').checked;
+
+      const { error } = await supabase
+        .from('projects')
+        .insert({
+          project_id: projectId,
+          project_name: projectName,
+          project_type: projectType,
+          has_ml_script: hasMLScript,
+        });
+
+      if (error) {
+        showNotification('Error creating project: ' + error.message, 'error');
+        return;
+      }
+
+      showNotification('Project created successfully', 'success');
+      window.hideCreateProjectModal();
+      loadProjectList();
+
+      if (hasMLScript) {
+        setTimeout(() => {
+          window.router.navigate(`/project/ml-script?id=${projectId}`);
+        }, 500);
+      }
+    });
+  }
+});

@@ -65,6 +65,7 @@ Deno.serve(async (req: Request) => {
           flow_out_lpm: data.flow_out_lpm,
           flow_in_lpm: data.flow_in_lpm,
           net_flow_lpm: data.net_flow_lpm,
+          manual_switch_status: data.manual_switch_status !== undefined ? data.manual_switch_status : 0,
         };
       } else if (data_type === "smart_light") {
         table = "sl_samples";
@@ -102,9 +103,21 @@ Deno.serve(async (req: Request) => {
         );
       }
 
+      const { data: deviceData } = await supabase
+        .from("devices")
+        .select("pump_upper_threshold")
+        .eq("device_id", device_id)
+        .maybeSingle();
+
+      const updateData: any = { updated_at: new Date().toISOString() };
+
+      if (data_type === "water_pump" && deviceData && data.level_pct >= deviceData.pump_upper_threshold) {
+        updateData.manual_switch = 0;
+      }
+
       const { error: updateError } = await supabase
         .from("devices")
-        .update({ updated_at: new Date().toISOString() })
+        .update(updateData)
         .eq("device_id", device_id);
 
       return new Response(

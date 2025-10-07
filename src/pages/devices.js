@@ -37,6 +37,38 @@ export async function renderDeviceList() {
   window.updateActiveNav('devices');
 }
 
+window.toggleManualSwitch = async function(deviceId, currentState) {
+  const newState = currentState === 1 ? 0 : 1;
+  const button = document.getElementById(`switch-${deviceId}`);
+
+  button.disabled = true;
+
+  try {
+    const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/esp32-switch?device_id=${deviceId}`;
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ manual_switch: newState })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to toggle switch');
+    }
+
+    button.textContent = newState === 1 ? 'ON' : 'OFF';
+    button.className = `btn btn-small ${newState === 1 ? 'btn-success' : 'btn-secondary'}`;
+    button.onclick = () => toggleManualSwitch(deviceId, newState);
+  } catch (error) {
+    alert('Error toggling switch: ' + error.message);
+  } finally {
+    button.disabled = false;
+  }
+};
+
 async function loadDeviceList() {
   const listContainer = document.getElementById('device-list');
 
@@ -72,6 +104,7 @@ async function loadDeviceList() {
             <th>Project</th>
             <th>Role</th>
             <th>Auto Update</th>
+            <th>Manual Switch</th>
             <th>Tank Info</th>
             <th>Last Updated</th>
             <th>Actions</th>
@@ -84,6 +117,15 @@ async function loadDeviceList() {
               <td>${device.projects?.project_name || 'N/A'}</td>
               <td><span class="badge ${device.role === 'beta' ? 'badge-warning' : 'badge-secondary'}">${device.role}</span></td>
               <td>${device.auto_update ? '✓' : '✗'}</td>
+              <td>
+                <button
+                  class="btn btn-small ${device.manual_switch === 1 ? 'btn-success' : 'btn-secondary'}"
+                  onclick="toggleManualSwitch('${device.device_id}', ${device.manual_switch})"
+                  id="switch-${device.device_id}"
+                >
+                  ${device.manual_switch === 1 ? 'ON' : 'OFF'}
+                </button>
+              </td>
               <td>${device.tank_shape ? `${device.tank_shape} (${device.height_cm}cm)` : 'N/A'}</td>
               <td>${formatDate(device.updated_at)}</td>
               <td>
@@ -206,6 +248,26 @@ export async function renderDeviceEdit(params) {
             <input type="number" id="length_cm" class="form-input" value="${device.length_cm || ''}" step="0.1">
           </div>
 
+          <div class="form-group">
+            <label class="form-label" for="max_flow_in">Max Flow In (L/min)</label>
+            <input type="number" id="max_flow_in" class="form-input" value="${device.max_flow_in || 0}" step="0.1">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="max_flow_out">Max Flow Out (L/min)</label>
+            <input type="number" id="max_flow_out" class="form-input" value="${device.max_flow_out || 0}" step="0.1">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="pump_lower_threshold">Pump Lower Threshold (%)</label>
+            <input type="number" id="pump_lower_threshold" class="form-input" value="${device.pump_lower_threshold || 15}" step="0.1" min="0" max="100">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="pump_upper_threshold">Pump Upper Threshold (%)</label>
+            <input type="number" id="pump_upper_threshold" class="form-input" value="${device.pump_upper_threshold || 100}" step="0.1" min="0" max="100">
+          </div>
+
           <div class="actions">
             <button type="submit" class="btn btn-primary">Save Changes</button>
             <button type="button" class="btn btn-secondary" onclick="window.router.navigate('/devices')">Cancel</button>
@@ -232,6 +294,10 @@ function setupDeviceForm(deviceId) {
     const heightCm = parseFloat(document.getElementById('height_cm').value) || null;
     const widthCm = parseFloat(document.getElementById('width_cm').value) || null;
     const lengthCm = parseFloat(document.getElementById('length_cm').value) || null;
+    const maxFlowIn = parseFloat(document.getElementById('max_flow_in').value) || 0;
+    const maxFlowOut = parseFloat(document.getElementById('max_flow_out').value) || 0;
+    const pumpLowerThreshold = parseFloat(document.getElementById('pump_lower_threshold').value) || 15;
+    const pumpUpperThreshold = parseFloat(document.getElementById('pump_upper_threshold').value) || 100;
 
     const { error } = await supabase
       .from('devices')
@@ -242,6 +308,10 @@ function setupDeviceForm(deviceId) {
         height_cm: heightCm,
         width_cm: widthCm,
         length_cm: lengthCm,
+        max_flow_in: maxFlowIn,
+        max_flow_out: maxFlowOut,
+        pump_lower_threshold: pumpLowerThreshold,
+        pump_upper_threshold: pumpUpperThreshold,
         updated_at: new Date().toISOString()
       })
       .eq('device_id', deviceId);
